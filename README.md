@@ -1,3 +1,6 @@
+Para poder ejecutar el dashboard correctamente deben entrar a la carpeta
+- cd frontMejia
+
 Dependencias instaladas en la creación del dashboard
 - npm install react react-dom
 - npm install bootstrap
