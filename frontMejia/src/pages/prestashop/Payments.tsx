@@ -74,17 +74,19 @@ export default function Payments() {
 
   if (loading) return <p>Loading payments…</p>;
   if (error) return <p role="alert">{error}</p>;
+
+  const sortedPayments = [...payment].sort((a, b) => a.id - b.id);
   return (
     <div>
       <h1>Pagos Prestashop</h1>
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(800px, 1fr))",
           gap: 16,
         }}
       >
-        {payment.map((p, i) => (
+        {sortedPayments.map((p, i) => (
           <div
             key={p.id}
             style={{
