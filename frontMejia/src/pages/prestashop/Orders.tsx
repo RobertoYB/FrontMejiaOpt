@@ -45,6 +45,13 @@ export default function Orders() {
     fetchData();
   }, []);
 
+  async function selectOrder(reference: string) {
+    const res = await axios.get(
+      `http://localhost:8000/api/prestashop/orders/ref/${reference}`,
+    );
+    setSelectedOrder(res.data.data.orders);
+  }
+
   if (loading) return <p>Loading orders…</p>;
   if (error) return <p role="alert">{error}</p>;
 
