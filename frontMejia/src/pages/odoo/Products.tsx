@@ -59,6 +59,8 @@ export default function Products() {
           "http://localhost:8000/api/odoo/products/"
         );
 
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
         const stockResponse = await axios.get(
           "http://localhost:8000/api/odoo/stock/"
         );
