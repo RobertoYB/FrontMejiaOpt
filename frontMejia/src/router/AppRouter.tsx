@@ -6,6 +6,7 @@ import Dashboard from "../pages/Dashboard";
 
 import OdooProducts from "../pages/odoo/Products";
 import OdooOrders from "../pages/odoo/Orders";
+import OdooCategories from "../pages/odoo/Categories";
 
 import PrestashopProducts from "../pages/prestashop/Products";
 import PrestashopOrders from "../pages/prestashop/Orders";
@@ -21,6 +22,7 @@ export default function AppRouter() {
           <Route path="/" element={<Dashboard />} />
 
           <Route path="/odoo/products" element={<OdooProducts />} />
+          <Route path="/odoo/categories" element={<OdooCategories />} />
           <Route path="/odoo/orders" element={<OdooOrders />} />
 
           <Route
