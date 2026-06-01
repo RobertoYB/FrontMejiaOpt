@@ -29,6 +29,10 @@ export default function Sidebar() {
         Productos
       </Link>
 
+      <Link className="nav-link text-white mb-2" to="/odoo/categories">
+        Categorías
+      </Link>
+
       <Link className="nav-link text-white mb-2" to="/odoo/orders">
         Órdenes
       </Link>
