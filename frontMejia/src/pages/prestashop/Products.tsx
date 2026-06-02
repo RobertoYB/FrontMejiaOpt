@@ -6,16 +6,20 @@ import {
 
 type Product = {
   id?: number | string;
-  name?: string;
+  name?: string | { value?: string }[];
   nombre?: string;
   title?: string;
   reference?: string;
   sku?: string;
   clave?: string;
+  clave_sku?: string;
+  product_sku?: string;
   price?: string | number;
   precio?: string | number;
   regular_price?: string | number;
-  description?: string;
+  product_price?: string | number;
+  description?: string | { value?: string }[];
+  description_short?: string | { value?: string }[];
   descripcion?: string;
   active?: boolean | string | number;
   status?: string;
@@ -33,21 +37,56 @@ export default function Products() {
   const [skuError, setSkuError] = useState("");
 
   const getProductName = (product: Product) => {
-    return product.name || product.nombre || product.title || "Sin nombre";
+    if (typeof product.name === "string") {
+      return product.name;
+    }
+
+    if (Array.isArray(product.name)) {
+      return product.name[0]?.value || "Sin nombre";
+    }
+
+    return product.nombre || product.title || "Sin nombre";
   };
 
   const getProductSku = (product: Product) => {
-    return product.reference || product.sku || product.clave || "Sin SKU";
+    return (
+      product.reference ||
+      product.sku ||
+      product.clave ||
+      product.clave_sku ||
+      product.product_sku ||
+      "Sin SKU"
+    );
   };
 
   const getProductPrice = (product: Product) => {
     return (
-      product.price || product.precio || product.regular_price || "Sin precio"
+      product.price ||
+      product.precio ||
+      product.regular_price ||
+      product.product_price ||
+      "Sin precio"
     );
   };
 
   const getProductDescription = (product: Product) => {
-    return product.description || product.descripcion || "Sin descripción";
+    if (typeof product.description === "string") {
+      return product.description;
+    }
+
+    if (Array.isArray(product.description)) {
+      return product.description[0]?.value || "Sin descripción";
+    }
+
+    if (typeof product.description_short === "string") {
+      return product.description_short;
+    }
+
+    if (Array.isArray(product.description_short)) {
+      return product.description_short[0]?.value || "Sin descripción";
+    }
+
+    return product.descripcion || "Sin descripción";
   };
 
   const getProductStatus = (product: Product) => {
@@ -63,6 +102,40 @@ export default function Products() {
     return "Inactivo";
   };
 
+  const normalizeProductsResponse = (data: any): Product[] => {
+    const productsData =
+      data?.products || data?.productos || data?.data || data?.result || data;
+
+    if (Array.isArray(productsData)) {
+      return productsData;
+    }
+
+    if (productsData?.product) {
+      return [productsData.product];
+    }
+
+    if (productsData?.producto) {
+      return [productsData.producto];
+    }
+
+    return [];
+  };
+
+  const normalizeSingleProductResponse = (data: any): Product | null => {
+    const productData =
+      data?.product || data?.producto || data?.data || data?.result || data;
+
+    if (Array.isArray(productData)) {
+      return productData.length > 0 ? productData[0] : null;
+    }
+
+    if (productData && typeof productData === "object") {
+      return productData;
+    }
+
+    return null;
+  };
+
   const handleGetProducts = async () => {
     setLoadingProducts(true);
     setProductsError("");
@@ -70,16 +143,8 @@ export default function Products() {
 
     try {
       const data = await getPrestashopProducts();
-
-      if (Array.isArray(data)) {
-        setProducts(data);
-      } else if (Array.isArray(data.products)) {
-        setProducts(data.products);
-      } else if (data.product) {
-        setProducts([data.product]);
-      } else {
-        setProducts([]);
-      }
+      const productsData = normalizeProductsResponse(data);
+      setProducts(productsData);
     } catch (error) {
       console.error(error);
       setProductsError("No se pudieron obtener los productos de Prestashop");
@@ -100,13 +165,12 @@ export default function Products() {
 
     try {
       const data = await getPrestashopProductBySku(sku);
+      const productData = normalizeSingleProductResponse(data);
 
-      if (data.product) {
-        setSelectedProduct(data.product);
-      } else if (Array.isArray(data.products) && data.products.length > 0) {
-        setSelectedProduct(data.products[0]);
+      if (productData) {
+        setSelectedProduct(productData);
       } else {
-        setSelectedProduct(data);
+        setSkuError("No se encontró información del producto");
       }
     } catch (error) {
       console.error(error);
@@ -205,7 +269,7 @@ export default function Products() {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Ejemplo: PROD001"
+                  placeholder="Ejemplo: CRU-0010"
                   value={sku}
                   onChange={(event) => setSku(event.target.value)}
                 />
