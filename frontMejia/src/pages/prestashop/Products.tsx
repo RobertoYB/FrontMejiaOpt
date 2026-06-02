@@ -6,23 +6,26 @@ import {
 
 type Product = {
   id?: number | string;
-  name?: string | { value?: string }[];
-  nombre?: string;
-  title?: string;
-  reference?: string;
-  sku?: string;
-  clave?: string;
-  clave_sku?: string;
-  product_sku?: string;
-  price?: string | number;
-  precio?: string | number;
-  regular_price?: string | number;
-  product_price?: string | number;
-  description?: string | { value?: string }[];
-  description_short?: string | { value?: string }[];
-  descripcion?: string;
+  id_product?: number | string;
+  name?: unknown;
+  nombre?: unknown;
+  title?: unknown;
+  product_name?: unknown;
+  reference?: unknown;
+  sku?: unknown;
+  clave?: unknown;
+  clave_sku?: unknown;
+  product_sku?: unknown;
+  price?: unknown;
+  precio?: unknown;
+  regular_price?: unknown;
+  product_price?: unknown;
+  description?: unknown;
+  description_short?: unknown;
+  descripcion?: unknown;
   active?: boolean | string | number;
   status?: string;
+  [key: string]: unknown;
 };
 
 export default function Products() {
@@ -36,57 +39,79 @@ export default function Products() {
   const [productsError, setProductsError] = useState("");
   const [skuError, setSkuError] = useState("");
 
+  const getTextValue = (value: unknown): string => {
+    if (value === null || value === undefined) return "";
+
+    if (typeof value === "string" || typeof value === "number") {
+      return String(value);
+    }
+
+    if (Array.isArray(value)) {
+      return (
+        getTextValue(value[0]) ||
+        getTextValue(value[0]?.value) ||
+        getTextValue(value[0]?.text) ||
+        getTextValue(value[0]?._)
+      );
+    }
+
+    if (typeof value === "object") {
+      const objectValue = value as Record<string, unknown>;
+
+      return (
+        getTextValue(objectValue.value) ||
+        getTextValue(objectValue.text) ||
+        getTextValue(objectValue._) ||
+        getTextValue(objectValue.language) ||
+        ""
+      );
+    }
+
+    return "";
+  };
+
+  const getProductId = (product: Product) => {
+    return product.id || product.id_product || "Sin ID";
+  };
+
   const getProductName = (product: Product) => {
-    if (typeof product.name === "string") {
-      return product.name;
-    }
-
-    if (Array.isArray(product.name)) {
-      return product.name[0]?.value || "Sin nombre";
-    }
-
-    return product.nombre || product.title || "Sin nombre";
+    return (
+      getTextValue(product.name) ||
+      getTextValue(product.nombre) ||
+      getTextValue(product.title) ||
+      getTextValue(product.product_name) ||
+      "Sin nombre"
+    );
   };
 
   const getProductSku = (product: Product) => {
     return (
-      product.reference ||
-      product.sku ||
-      product.clave ||
-      product.clave_sku ||
-      product.product_sku ||
+      getTextValue(product.reference) ||
+      getTextValue(product.sku) ||
+      getTextValue(product.clave) ||
+      getTextValue(product.clave_sku) ||
+      getTextValue(product.product_sku) ||
       "Sin SKU"
     );
   };
 
   const getProductPrice = (product: Product) => {
     return (
-      product.price ||
-      product.precio ||
-      product.regular_price ||
-      product.product_price ||
+      getTextValue(product.price) ||
+      getTextValue(product.precio) ||
+      getTextValue(product.regular_price) ||
+      getTextValue(product.product_price) ||
       "Sin precio"
     );
   };
 
   const getProductDescription = (product: Product) => {
-    if (typeof product.description === "string") {
-      return product.description;
-    }
-
-    if (Array.isArray(product.description)) {
-      return product.description[0]?.value || "Sin descripción";
-    }
-
-    if (typeof product.description_short === "string") {
-      return product.description_short;
-    }
-
-    if (Array.isArray(product.description_short)) {
-      return product.description_short[0]?.value || "Sin descripción";
-    }
-
-    return product.descripcion || "Sin descripción";
+    return (
+      getTextValue(product.description) ||
+      getTextValue(product.description_short) ||
+      getTextValue(product.descripcion) ||
+      "Sin descripción"
+    );
   };
 
   const getProductStatus = (product: Product) => {
@@ -102,38 +127,77 @@ export default function Products() {
     return "Inactivo";
   };
 
-  const normalizeProductsResponse = (data: any): Product[] => {
-    const productsData =
-      data?.products || data?.productos || data?.data || data?.result || data;
+  const isProductLike = (item: unknown): item is Product => {
+    if (!item || typeof item !== "object") return false;
 
-    if (Array.isArray(productsData)) {
-      return productsData;
+    const product = item as Product;
+
+    return (
+      product.id !== undefined ||
+      product.id_product !== undefined ||
+      product.name !== undefined ||
+      product.nombre !== undefined ||
+      product.reference !== undefined ||
+      product.sku !== undefined ||
+      product.price !== undefined ||
+      product.precio !== undefined
+    );
+  };
+
+  const extractProductsFromResponse = (data: unknown): Product[] => {
+    if (!data) return [];
+
+    if (Array.isArray(data)) {
+      return data.filter(isProductLike);
     }
 
-    if (productsData?.product) {
-      return [productsData.product];
+    if (typeof data !== "object") {
+      return [];
     }
 
-    if (productsData?.producto) {
-      return [productsData.producto];
+    const response = data as Record<string, unknown>;
+
+    const possibleArrays = [
+      response.products,
+      response.productos,
+      response.data,
+      response.result,
+      response.items,
+      response.products &&
+        (response.products as Record<string, unknown>).product,
+      response.productos &&
+        (response.productos as Record<string, unknown>).producto,
+    ];
+
+    for (const item of possibleArrays) {
+      if (Array.isArray(item)) {
+        return item.filter(isProductLike);
+      }
+    }
+
+    const possibleObjects = [
+      response.product,
+      response.producto,
+      response.data,
+      response.result,
+      response.item,
+      response.products &&
+        (response.products as Record<string, unknown>).product,
+      response.productos &&
+        (response.productos as Record<string, unknown>).producto,
+    ];
+
+    for (const item of possibleObjects) {
+      if (isProductLike(item)) {
+        return [item];
+      }
+    }
+
+    if (isProductLike(response)) {
+      return [response];
     }
 
     return [];
-  };
-
-  const normalizeSingleProductResponse = (data: any): Product | null => {
-    const productData =
-      data?.product || data?.producto || data?.data || data?.result || data;
-
-    if (Array.isArray(productData)) {
-      return productData.length > 0 ? productData[0] : null;
-    }
-
-    if (productData && typeof productData === "object") {
-      return productData;
-    }
-
-    return null;
   };
 
   const handleGetProducts = async () => {
@@ -143,10 +207,20 @@ export default function Products() {
 
     try {
       const data = await getPrestashopProducts();
-      const productsData = normalizeProductsResponse(data);
+
+      console.log("Respuesta productos Prestashop:", data);
+
+      const productsData = extractProductsFromResponse(data);
+
+      if (productsData.length === 0) {
+        setProductsError(
+          "La API respondió, pero no se encontraron productos para mostrar",
+        );
+      }
+
       setProducts(productsData);
     } catch (error) {
-      console.error(error);
+      console.error("Error al obtener productos:", error);
       setProductsError("No se pudieron obtener los productos de Prestashop");
     } finally {
       setLoadingProducts(false);
@@ -165,15 +239,20 @@ export default function Products() {
 
     try {
       const data = await getPrestashopProductBySku(sku);
-      const productData = normalizeSingleProductResponse(data);
 
-      if (productData) {
-        setSelectedProduct(productData);
+      console.log("Respuesta producto por SKU:", data);
+
+      const productsData = extractProductsFromResponse(data);
+
+      if (productsData.length > 0) {
+        setSelectedProduct(productsData[0]);
       } else {
-        setSkuError("No se encontró información del producto");
+        setSkuError(
+          "La API respondió, pero no se encontró información del producto",
+        );
       }
     } catch (error) {
-      console.error(error);
+      console.error("Error al buscar producto por SKU:", error);
       setSkuError("No se encontró el producto o hubo un error con la API");
     } finally {
       setLoadingSku(false);
@@ -212,7 +291,7 @@ export default function Products() {
               </button>
 
               {productsError && (
-                <div className="alert alert-danger">{productsError}</div>
+                <div className="alert alert-warning">{productsError}</div>
               )}
 
               {products.length > 0 ? (
@@ -230,8 +309,8 @@ export default function Products() {
 
                     <tbody>
                       {products.map((product, index) => (
-                        <tr key={product.id || index}>
-                          <td>{product.id || "Sin ID"}</td>
+                        <tr key={String(getProductId(product)) + index}>
+                          <td>{getProductId(product)}</td>
                           <td>{getProductName(product)}</td>
                           <td>{getProductSku(product)}</td>
                           <td>{getProductPrice(product)}</td>
@@ -283,7 +362,9 @@ export default function Products() {
                 {loadingSku ? "Buscando..." : "Buscar producto"}
               </button>
 
-              {skuError && <div className="alert alert-danger">{skuError}</div>}
+              {skuError && (
+                <div className="alert alert-warning">{skuError}</div>
+              )}
 
               {selectedProduct && (
                 <div className="card border-success">
@@ -295,7 +376,7 @@ export default function Products() {
                     </h5>
 
                     <p>
-                      <strong>ID:</strong> {selectedProduct.id || "Sin ID"}
+                      <strong>ID:</strong> {getProductId(selectedProduct)}
                     </p>
 
                     <p>

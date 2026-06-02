@@ -9,8 +9,10 @@ export async function getPrestashopProducts() {
 
 export async function getPrestashopProductBySku(sku: string) {
   const cleanSku = encodeURIComponent(sku.trim());
+
   const response = await axios.get(
     `${API_URL}/api/prestashop/products/${cleanSku}`,
   );
+
   return response.data;
 }
