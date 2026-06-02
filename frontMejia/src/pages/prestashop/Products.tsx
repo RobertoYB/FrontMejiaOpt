@@ -6,19 +6,25 @@ import {
 
 type Product = {
   id?: number | string;
-  name?: string;
-  nombre?: string;
-  title?: string;
+  id_product?: number | string;
+  id_category_default?: number | string;
+  quantity?: number | string;
+  name?: unknown;
   reference?: string;
-  sku?: string;
-  clave?: string;
   price?: string | number;
-  precio?: string | number;
-  regular_price?: string | number;
-  description?: string;
-  descripcion?: string;
+  wholesale_price?: string | number;
   active?: boolean | string | number;
+  date_add?: string;
+  date_upd?: string;
+  [key: string]: unknown;
+};
+
+type PrestashopResponse = {
   status?: string;
+  data?: {
+    products?: Product[];
+  };
+  errors?: unknown[];
 };
 
 export default function Products() {
@@ -32,35 +38,82 @@ export default function Products() {
   const [productsError, setProductsError] = useState("");
   const [skuError, setSkuError] = useState("");
 
+  const getTextValue = (value: unknown): string => {
+    if (value === null || value === undefined) return "";
+
+    if (typeof value === "string" || typeof value === "number") {
+      return String(value);
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const text = getTextValue(item);
+        if (text.trim() !== "") return text;
+      }
+
+      return "";
+    }
+
+    if (typeof value === "object") {
+      const objectValue = value as Record<string, unknown>;
+
+      return (
+        getTextValue(objectValue.value) ||
+        getTextValue(objectValue.text) ||
+        getTextValue(objectValue._) ||
+        ""
+      );
+    }
+
+    return "";
+  };
+
+  const formatPrice = (price: unknown) => {
+    const value = Number(price);
+
+    if (Number.isNaN(value)) {
+      return getTextValue(price) || "Sin precio";
+    }
+
+    return `$${value.toFixed(2)}`;
+  };
+
+  const getProductId = (product: Product) => {
+    return product.id || product.id_product || "Sin ID";
+  };
+
   const getProductName = (product: Product) => {
-    return product.name || product.nombre || product.title || "Sin nombre";
+    return getTextValue(product.name) || "Sin nombre";
   };
 
   const getProductSku = (product: Product) => {
-    return product.reference || product.sku || product.clave || "Sin SKU";
+    return product.reference || "Sin SKU";
   };
 
   const getProductPrice = (product: Product) => {
-    return (
-      product.price || product.precio || product.regular_price || "Sin precio"
-    );
+    return formatPrice(product.price);
   };
 
-  const getProductDescription = (product: Product) => {
-    return product.description || product.descripcion || "Sin descripción";
+  const getProductStock = (product: Product) => {
+    return product.quantity ?? "Sin stock";
   };
 
   const getProductStatus = (product: Product) => {
     if (
       product.active === true ||
       product.active === "1" ||
-      product.active === 1 ||
-      product.status === "active"
+      product.active === 1
     ) {
       return "Activo";
     }
 
     return "Inactivo";
+  };
+
+  const extractProductsFromResponse = (
+    response: PrestashopResponse,
+  ): Product[] => {
+    return response.data?.products || [];
   };
 
   const handleGetProducts = async () => {
@@ -70,18 +123,19 @@ export default function Products() {
 
     try {
       const data = await getPrestashopProducts();
+      console.log("Respuesta productos Prestashop:", data);
 
-      if (Array.isArray(data)) {
-        setProducts(data);
-      } else if (Array.isArray(data.products)) {
-        setProducts(data.products);
-      } else if (data.product) {
-        setProducts([data.product]);
-      } else {
-        setProducts([]);
+      const productsData = extractProductsFromResponse(data);
+
+      if (productsData.length === 0) {
+        setProductsError(
+          "La API respondió, pero no se encontraron productos para mostrar",
+        );
       }
+
+      setProducts(productsData);
     } catch (error) {
-      console.error(error);
+      console.error("Error al obtener productos:", error);
       setProductsError("No se pudieron obtener los productos de Prestashop");
     } finally {
       setLoadingProducts(false);
@@ -100,16 +154,19 @@ export default function Products() {
 
     try {
       const data = await getPrestashopProductBySku(sku);
+      console.log("Respuesta producto por SKU:", data);
 
-      if (data.product) {
-        setSelectedProduct(data.product);
-      } else if (Array.isArray(data.products) && data.products.length > 0) {
-        setSelectedProduct(data.products[0]);
+      const productsData = extractProductsFromResponse(data);
+
+      if (productsData.length > 0) {
+        setSelectedProduct(productsData[0]);
       } else {
-        setSelectedProduct(data);
+        setSkuError(
+          "La API respondió, pero no se encontró información del producto",
+        );
       }
     } catch (error) {
-      console.error(error);
+      console.error("Error al buscar producto por SKU:", error);
       setSkuError("No se encontró el producto o hubo un error con la API");
     } finally {
       setLoadingSku(false);
@@ -148,7 +205,7 @@ export default function Products() {
               </button>
 
               {productsError && (
-                <div className="alert alert-danger">{productsError}</div>
+                <div className="alert alert-warning">{productsError}</div>
               )}
 
               {products.length > 0 ? (
@@ -160,17 +217,19 @@ export default function Products() {
                         <th>Nombre</th>
                         <th>SKU / Referencia</th>
                         <th>Precio</th>
+                        <th>Stock</th>
                         <th>Estado</th>
                       </tr>
                     </thead>
 
                     <tbody>
                       {products.map((product, index) => (
-                        <tr key={product.id || index}>
-                          <td>{product.id || "Sin ID"}</td>
+                        <tr key={`${getProductId(product)}-${index}`}>
+                          <td>{getProductId(product)}</td>
                           <td>{getProductName(product)}</td>
                           <td>{getProductSku(product)}</td>
                           <td>{getProductPrice(product)}</td>
+                          <td>{getProductStock(product)}</td>
                           <td>{getProductStatus(product)}</td>
                         </tr>
                       ))}
@@ -205,7 +264,7 @@ export default function Products() {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Ejemplo: PROD001"
+                  placeholder="Ejemplo: CRU-0020"
                   value={sku}
                   onChange={(event) => setSku(event.target.value)}
                 />
@@ -219,7 +278,9 @@ export default function Products() {
                 {loadingSku ? "Buscando..." : "Buscar producto"}
               </button>
 
-              {skuError && <div className="alert alert-danger">{skuError}</div>}
+              {skuError && (
+                <div className="alert alert-warning">{skuError}</div>
+              )}
 
               {selectedProduct && (
                 <div className="card border-success">
@@ -231,7 +292,7 @@ export default function Products() {
                     </h5>
 
                     <p>
-                      <strong>ID:</strong> {selectedProduct.id || "Sin ID"}
+                      <strong>ID:</strong> {getProductId(selectedProduct)}
                     </p>
 
                     <p>
@@ -245,8 +306,7 @@ export default function Products() {
                     </p>
 
                     <p>
-                      <strong>Descripción:</strong>{" "}
-                      {getProductDescription(selectedProduct)}
+                      <strong>Stock:</strong> {getProductStock(selectedProduct)}
                     </p>
 
                     <p>
